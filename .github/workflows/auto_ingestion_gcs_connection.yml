@@ -6,7 +6,7 @@ on:
     - cron: '0 * * * *'  
 
 env:
-  TINYBIRD_HOST: https://api.tinybird.co 
+  TINYBIRD_HOST: ${{ secrets.TINYBIRD_HOST }} 
   TINYBIRD_TOKEN: ${{ secrets.TINYBIRD_TOKEN }}
 
 jobs:
