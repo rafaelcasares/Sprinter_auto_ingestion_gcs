@@ -1,12 +1,16 @@
+# .github/workflows/tinybird_sync_all.yml
 name: Tinybird – Sync all GCS datasources
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '0 * * * *'     # se ejecuta al inicio de cada hora (UTC)
 
 env:
+  # Token con PIPE:READ + DATASOURCES:MANAGE
   TINYBIRD_TOKEN: ${{ secrets.TINYBIRD_TOKEN }}
+  # Host de la API para tu workspace en GCP europe‑west3
+  TINYBIRD_HOST: https://api.tinybird.co
 
 jobs:
   fetch-list:
@@ -14,32 +18,42 @@ jobs:
     outputs:
       list: ${{ steps.get.outputs.list }}
     steps:
-      - run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
 
-      - id: get
+      - name: Get datasource list
+        id: get
         run: |
           set -eo pipefail
           resp=$(curl -sS -w "\n%{http_code}" \
             -H "Authorization: Bearer $TINYBIRD_TOKEN" \
-            "https://api.tinybird.co/v0/pipes/list_ingest_targets.json")
-          body=$(echo "$resp" | head -n -1)
-          status=$(echo "$resp" | tail -n 1)
-          [ "$status" = "200" ] || { echo "::error::API $status – $body"; exit 1; }
+            "$TINYBIRD_HOST/v0/pipes/list_ingest_targets_endpoint.json")
 
+          body=$(echo "$resp" | head -n -1)
+          code=$(echo "$resp" | tail -n 1)
+
+          if [ "$code" != "200" ]; then
+            echo "::error::Tinybird API devolvió $code → $body"
+            exit 1
+          fi
+
+          # Construye un array JSON; puede ser [] si la tabla está vacía
           list=$(echo "$body" | jq -c '[.data[]?.datasource_name]')
           echo "list=$list" >> "$GITHUB_OUTPUT"
+          echo "Encontrados $(echo "$list" | jq length) DataSources"
 
   sync:
     needs: fetch-list
+    if: ${{ needs.fetch-list.outputs.list != '[]' }}   # salta si no hay nada que ingestar
     runs-on: ubuntu-latest
-    if: ${{ needs.fetch-list.outputs.list != '[]' }}
     strategy:
       fail-fast: false
       matrix:
         datasource: ${{ fromJson(needs.fetch-list.outputs.list) }}
     steps:
-      - run: |
-          echo "Syncing ${{ matrix.datasource }}…"
+      - name: Trigger ingestion
+        run: |
+          echo "Ingestando ${{ matrix.datasource }}…"
           curl -sf -X POST \
             -H "Authorization: Bearer $TINYBIRD_TOKEN" \
-            "https://api.tinybird.co/v0/datasources/${{ matrix.datasource }}/scheduling/runs"
+            "$TINYBIRD_HOST/v0/datasources/${{ matrix.datasource }}/scheduling/runs"
