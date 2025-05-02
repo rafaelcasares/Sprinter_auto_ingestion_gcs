@@ -20,10 +20,22 @@ jobs:
       - name: Get datasource list
         id: get
         run: |
-          json=$(curl -s -H "Authorization: Bearer $TINYBIRD_TOKEN" \
+          set -eo pipefail
+          resp=$(curl -sS -w "\n%{http_code}" \
+            -H "Authorization: Bearer $TINYBIRD_TOKEN" \
             "$TINYBIRD_HOST/v0/pipes/list_ingest_targets.json")
-          list=$(echo "$json" | jq -c '[.data[].datasource_name]')
-          echo "list=$list" >> $GITHUB_OUTPUT
+
+          body=$(echo "$resp" | head -n -1)
+          status=$(echo "$resp" | tail -n 1)
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Tinybird API devolvió $status → $body"
+            exit 1
+          fi
+
+          list=$(echo "$body" | jq -c '[.data[]?.datasource_name]')
+          echo "list=$list"
+          echo "list=$list" >> "$GITHUB_OUTPUT"
 
   sync:
     needs: fetch-list
