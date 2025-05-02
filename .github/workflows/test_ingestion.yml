@@ -2,7 +2,8 @@ name: Tinybird - test - GCS
 
 on:
   workflow_dispatch:
-
+  schedule:
+    - cron: '0 * * * *'  
 env:
   TINYBIRD_HOST: ${{ secrets.TINYBIRD_HOST }}
   TINYBIRD_TOKEN: ${{ secrets.TINYBIRD_TOKEN }}
