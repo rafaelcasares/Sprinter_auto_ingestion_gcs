@@ -3,11 +3,12 @@ name: Tinybird – Sync all GCS datasources
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 * * * *'  
+    - cron: '0 * * * *'     # al inicio de cada hora, UTC
 
 env:
-  TINYBIRD_HOST: ${{ secrets.TINYBIRD_HOST }} 
-  TINYBIRD_TOKEN: ${{ secrets.TINYBIRD_TOKEN }}
+  # ↓ pon estos dos secretos en Settings ▸ Secrets & variables ▸ Actions
+  TINYBIRD_HOST: ${{ secrets.TINYBIRD_HOST }}   # p.e. https://api.tinybird.co
+  TINYBIRD_TOKEN: ${{ secrets.TINYBIRD_TOKEN }} # token con PIPE:READ + DATASOURCES:MANAGE
 
 jobs:
   fetch-list:
@@ -17,13 +18,24 @@ jobs:
     steps:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Check env vars
+        run: |
+          : "${TINYBIRD_HOST:?Falta TINYBIRD_HOST}"
+          : "${TINYBIRD_TOKEN:?Falta TINYBIRD_TOKEN}"
+          echo "Secrets OK"
+
       - name: Get datasource list
         id: get
         run: |
           set -eo pipefail
+
+          host=${TINYBIRD_HOST:-https://api.tinybird.co}  # fallback por si viene vacío
+
+          # Llama al endpoint que lista los Data Sources a ingestar
           resp=$(curl -sS -w "\n%{http_code}" \
             -H "Authorization: Bearer $TINYBIRD_TOKEN" \
-            "$TINYBIRD_HOST/v0/pipes/list_ingest_targets.json")
+            "$host/v0/pipes/list_ingest_targets.json")
 
           body=$(echo "$resp" | head -n -1)
           status=$(echo "$resp" | tail -n 1)
@@ -33,6 +45,7 @@ jobs:
             exit 1
           fi
 
+          # Construye un array JSON seguro (puede quedar [])
           list=$(echo "$body" | jq -c '[.data[]?.datasource_name]')
           echo "list=$list"
           echo "list=$list" >> "$GITHUB_OUTPUT"
@@ -40,6 +53,7 @@ jobs:
   sync:
     needs: fetch-list
     runs-on: ubuntu-latest
+    if: ${{ needs.fetch-list.outputs.list != '[]' }}   # salta si no hay nada que ingestar
     strategy:
       fail-fast: false
       matrix:
@@ -47,7 +61,8 @@ jobs:
     steps:
       - name: Trigger ingestion
         run: |
+          host=${TINYBIRD_HOST:-https://api.tinybird.co}
           echo "Syncing ${{ matrix.datasource }}..."
           curl -sf -X POST \
             -H "Authorization: Bearer $TINYBIRD_TOKEN" \
-            "$TINYBIRD_HOST/v0/datasources/${{ matrix.datasource }}/scheduling/runs"
+            "$host/v0/datasources/${{ matrix.datasource }}/scheduling/runs"
