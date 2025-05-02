@@ -1,0 +1,17 @@
+name: Tinybird - test - GCS
+
+on:
+  workflow_dispatch:
+
+env:
+  TINYBIRD_HOST: ${{ secrets.TINYBIRD_HOST }}
+  TINYBIRD_TOKEN: ${{ secrets.TINYBIRD_TOKEN }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: sync datasource
+        run: |
+          curl -X POST "https://api.tinybird.co/v0/datasources/raw_gcs_journal_delta/scheduling/runs" \
+            -H "Authorization: Bearer ${{ env.TINYBIRD_TOKEN }}"
