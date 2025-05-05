@@ -1,10 +1,10 @@
-# .github/workflows/tinybird_sync_all.yml
+
 name: Tinybird – Sync all GCS datasources
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 * * * *'     # cada hora (UTC)
+    - cron: '0 * * * *'     
 
 env:
   TINYBIRD_HOST: https://api.tinybird.co
@@ -23,15 +23,14 @@ jobs:
         run: |
           set -eo pipefail
 
-          # Consulta directa al endpoint /v0/sql (no hace falta crear Pipe)
+          
           sql='SELECT datasource_name FROM gcs_ingest_targets ORDER BY datasource_name'
           resp=$(curl -sS -G \
             -H "Authorization: Bearer p.eyJ1IjogImQ2YTJkMjM5LTViNWUtNDFmYy1iYzk1LTQwZDM2NDQyOGQ3MyIsICJpZCI6ICJhZTNhOGRhZi1hZjM0LTQ3Y2EtYjU2Ny0xNDM2OGU3NmQzYzMiLCAiaG9zdCI6ICJldV9zaGFyZWQifQ.TvtjY4OR4aQqRwEYSCEkvtKc9I1as54eV_bJuYxnGJI" \
             -H "Accept: application/json" \
             --data-urlencode "q=$sql" \
             "$TINYBIRD_HOST/v0/sql")
-
-          # resp viene como { "data": [ { "datasource_name": "ds1" }, ... ] }
+            
           ds_list=$(echo "$resp" | jq -c '[.data[].datasource_name]')
           echo "ds_list=$ds_list" >> "$GITHUB_OUTPUT"
           echo "Se van a sincronizar $(echo "$ds_list" | jq length) DataSources"
