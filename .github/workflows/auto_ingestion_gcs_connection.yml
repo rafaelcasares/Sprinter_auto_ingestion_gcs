@@ -4,56 +4,50 @@ name: Tinybird – Sync all GCS datasources
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 * * * *'     # se ejecuta al inicio de cada hora (UTC)
+    - cron: '0 * * * *'     # cada hora (UTC)
 
 env:
-  # Token con PIPE:READ + DATASOURCES:MANAGE
-  TINYBIRD_TOKEN: ${{ secrets.TINYBIRD_TOKEN }}
-  # Host de la API para tu workspace en GCP europe‑west3
   TINYBIRD_HOST: https://api.tinybird.co
+  TINYBIRD_TOKEN: ${{ secrets.TINYBIRD_TOKEN }}
 
 jobs:
   fetch-list:
     runs-on: ubuntu-latest
     outputs:
-      list: ${{ steps.get.outputs.list }}
+      ds_list: ${{ steps.get.outputs.ds_list }}
     steps:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Get datasource list
+      - name: Get list from gcs_ingest_targets
         id: get
         run: |
           set -eo pipefail
-          resp=$(curl -sS -w "\n%{http_code}" \
-            -H "Authorization: Bearer $TINYBIRD_TOKEN" \
-            "$TINYBIRD_HOST/v0/pipes/list_ingest_targets_endpoint.json")
 
-          body=$(echo "$resp" | head -n -1)
-          code=$(echo "$resp" | tail -n 1)
+          # Consulta directa al endpoint /v0/sql (no hace falta crear Pipe)
+          sql='SELECT datasource_name FROM gcs_ingest_targets ORDER BY datasource_name'
+          resp=$(curl -sS -G \
+            -H "Authorization: Bearer p.eyJ1IjogImQ2YTJkMjM5LTViNWUtNDFmYy1iYzk1LTQwZDM2NDQyOGQ3MyIsICJpZCI6ICJhZTNhOGRhZi1hZjM0LTQ3Y2EtYjU2Ny0xNDM2OGU3NmQzYzMiLCAiaG9zdCI6ICJldV9zaGFyZWQifQ.TvtjY4OR4aQqRwEYSCEkvtKc9I1as54eV_bJuYxnGJI" \
+            --data-urlencode "q=$sql" \
+            "$TINYBIRD_HOST/v0/sql")
 
-          if [ "$code" != "200" ]; then
-            echo "::error::Tinybird API devolvió $code → $body"
-            exit 1
-          fi
-
-          # Construye un array JSON; puede ser [] si la tabla está vacía
-          list=$(echo "$body" | jq -c '[.data[]?.datasource_name]')
-          echo "list=$list" >> "$GITHUB_OUTPUT"
-          echo "Encontrados $(echo "$list" | jq length) DataSources"
+          # resp viene como { "data": [ { "datasource_name": "ds1" }, ... ] }
+          ds_list=$(echo "$resp" | jq -c '[.data[].datasource_name]')
+          echo "ds_list=$ds_list" >> "$GITHUB_OUTPUT"
+          echo "Se van a sincronizar $(echo "$ds_list" | jq length) DataSources"
 
   sync:
     needs: fetch-list
-    if: ${{ needs.fetch-list.outputs.list != '[]' }}   # salta si no hay nada que ingestar
+    if: ${{ needs.fetch-list.outputs.ds_list != '[]' }}
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        datasource: ${{ fromJson(needs.fetch-list.outputs.list) }}
+        datasource: ${{ fromJson(needs.fetch-list.outputs.ds_list) }}
+      fail-fast: false
     steps:
-      - name: Trigger ingestion
+      - name: Trigger ingestion for ${{ matrix.datasource }}
         run: |
-          echo "Ingestando ${{ matrix.datasource }}…"
+          echo "Lanzando ingesta de ${{ matrix.datasource }} ..."
           curl -sf -X POST \
-            -H "Authorization: Bearer $TINYBIRD_TOKEN" \
+            -H "Authorization: Bearer p.eyJ1IjogImQ2YTJkMjM5LTViNWUtNDFmYy1iYzk1LTQwZDM2NDQyOGQ3MyIsICJpZCI6ICJhZTNhOGRhZi1hZjM0LTQ3Y2EtYjU2Ny0xNDM2OGU3NmQzYzMiLCAiaG9zdCI6ICJldV9zaGFyZWQifQ.TvtjY4OR4aQqRwEYSCEkvtKc9I1as54eV_bJuYxnGJI" \
             "$TINYBIRD_HOST/v0/datasources/${{ matrix.datasource }}/scheduling/runs"
