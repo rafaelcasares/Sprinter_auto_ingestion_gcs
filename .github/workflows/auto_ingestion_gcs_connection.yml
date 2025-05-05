@@ -27,6 +27,7 @@ jobs:
           sql='SELECT datasource_name FROM gcs_ingest_targets ORDER BY datasource_name'
           resp=$(curl -sS -G \
             -H "Authorization: Bearer p.eyJ1IjogImQ2YTJkMjM5LTViNWUtNDFmYy1iYzk1LTQwZDM2NDQyOGQ3MyIsICJpZCI6ICJhZTNhOGRhZi1hZjM0LTQ3Y2EtYjU2Ny0xNDM2OGU3NmQzYzMiLCAiaG9zdCI6ICJldV9zaGFyZWQifQ.TvtjY4OR4aQqRwEYSCEkvtKc9I1as54eV_bJuYxnGJI" \
+            -H "Accept: application/json" \
             --data-urlencode "q=$sql" \
             "$TINYBIRD_HOST/v0/sql")
 
