@@ -8,8 +8,7 @@ on:
 
 env:
   TINYBIRD_HOST: https://api.tinybird.co
-  TINYBIRD_TOKEN: ${{ secrets.TINYBIRD_TOKEN }}
-
+  TINYBIRD_TOKEN: p.eyJ1IjogImQ2YTJkMjM5LTViNWUtNDFmYy1iYzk1LTQwZDM2NDQyOGQ3MyIsICJpZCI6ICJhZTNhOGRhZi1hZjM0LTQ3Y2EtYjU2Ny0xNDM2OGU3NmQzYzMiLCAiaG9zdCI6ICJldV9zaGFyZWQifQ.TvtjY4OR4aQqRwEYSCEkvtKc9I1as54eV_bJuYxnGJI
 jobs:
   fetch-list:
     runs-on: ubuntu-latest
