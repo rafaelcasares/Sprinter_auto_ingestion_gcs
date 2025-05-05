@@ -39,6 +39,11 @@ jobs:
           echo "ds_list=$ds_list" >> "$GITHUB_OUTPUT"
           echo "Se van a sincronizar $(echo "$ds_list" | jq length) DataSources"
 
+          body=$(echo "$resp" | head -n -1)
+          code=$(echo "$resp" | tail -n 1)
+          echo "HTTP $code"
+          echo "$body"
+
   sync:
     needs: fetch-list
     if: ${{ needs.fetch-list.outputs.ds_list != '[]' }}
