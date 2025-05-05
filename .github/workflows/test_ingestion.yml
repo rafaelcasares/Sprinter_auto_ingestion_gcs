@@ -14,5 +14,5 @@ jobs:
     steps:
       - name: sync datasource
         run: |
-          curl -X POST "https://api.tinybird.co/v0/datasources/raw_gcs_journal_delta/scheduling/runs" \
+          curl -X POST "https://api.tinybird.co/v0/datasources/raw_gcs_asmdcod/scheduling/runs" \
             -H "Authorization: Bearer ${{ env.TINYBIRD_TOKEN }}"
