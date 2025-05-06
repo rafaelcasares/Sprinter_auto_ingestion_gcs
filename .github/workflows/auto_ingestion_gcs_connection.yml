@@ -27,9 +27,10 @@ jobs:
                   -H "Authorization: Bearer p.eyJ1IjogImQ2YTJkMjM5LTViNWUtNDFmYy1iYzk1LTQwZDM2NDQyOGQ3MyIsICJpZCI6ICJhZTNhOGRhZi1hZjM0LTQ3Y2EtYjU2Ny0xNDM2OGU3NmQzYzMiLCAiaG9zdCI6ICJldV9zaGFyZWQifQ.TvtjY4OR4aQqRwEYSCEkvtKc9I1as54eV_bJuYxnGJI" \
                   --data-urlencode "q=$sql" \
                   --data-urlencode "format=csv" \
+                  --data-urlencode "header=0" \
                   "$TINYBIRD_HOST/v0/sql")
 
-          ds_list=$(echo "$resp" | tail -n +2 | jq -R -s -c 'split("\n")[:-1]')
+          ds_list=$(echo "$resp" | jq -R -s -c 'split("\n") | map(select(. != ""))')
           echo "ds_list=$ds_list" >> "$GITHUB_OUTPUT"
           echo "🚀 Se van a sincronizar $(echo "$ds_list" | jq length) DataSources"
 
